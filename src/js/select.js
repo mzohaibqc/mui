@@ -32,43 +32,26 @@ function initialize(selectEl) {
   if ('ontouchstart' in doc.documentElement) return;
 
   // initialize element
-  new Select(selectEl);
-
-  // set flag
-  selectEl._muiJs = true;
-}
-
-
-/**
- * Creates a new Select object
- * @class
- */
-function Select(selectEl) {
-  var wrapperEl = selectEl.parentNode;
-
-  // instance variables
-  this.selectEl = selectEl;
-  this.wrapperEl = wrapperEl;
-  this.useDefault = false;  // currently unused but let's keep just in case
-  this.isOpen = false;
-  this.menu = null;
 
   // NOTE: To get around cross-browser issues with <select> behavior we will
   //       defer focus to the parent element and handle events there
 
+  var wrapperEl = selectEl.parentNode;
+
+  // cache reference
+  wrapperEl.selectEl = selectEl;
+
   // make wrapper tab focusable, remove tab focus from <select>
   if (!selectEl.disabled) wrapperEl.tabIndex = 0;
-  if (!this.useDefault) selectEl.tabIndex = -1;
-
-  var cb = util.callback;
+  selectEl.tabIndex = -1;
 
   // prevent built-in menu from opening on <select>
-  jqLite.on(selectEl, 'mousedown', cb(this, 'onInnerMouseDown'));
+  jqLite.on(selectEl, 'mousedown', selectElOnInnerMouseDown);
 
   // attach event listeners for custom menu
-  jqLite.on(wrapperEl, 'click', cb(this, 'onWrapperClick'));
-  jqLite.on(wrapperEl, 'blur focus', cb(this, 'onWrapperBlurOrFocus'));
-  jqLite.on(wrapperEl, 'keydown', cb(this, 'onWrapperKeyDown'));
+  jqLite.on(wrapperEl, 'click', selectElOnWrapperClick);
+  jqLite.on(wrapperEl, 'blur focus', selectElOnWrapperBlurOrFocus);
+  jqLite.on(wrapperEl, 'keydown', selectElOnWrapperKeyDown);
 
   // add element to detect 'disabled' change (using sister element due to 
   // IE/Firefox issue
@@ -89,24 +72,24 @@ function Select(selectEl) {
   });
 }
 
+/****************************************************************************/
 
 /**
  * Dispatch focus and blur events on inner <select> element.
  * @param {Event} ev - The DOM event
  */
-Select.prototype.onWrapperBlurOrFocus = function(ev) {
+function selectElOnWrapperBlurOrFocus(ev) {
   util.dispatchEvent(this.selectEl, ev.type, false, false);
 }
-
 
 
 /**
  * Disable default dropdown on mousedown.
  * @param {Event} ev - The DOM event
  */
-Select.prototype.onInnerMouseDown = function(ev) {
+function selectElOnInnerMouseDown(ev) {
   // only left clicks
-  if (ev.button !== 0 || this.useDefault) return;
+  if (ev.button !== 0) return;
 
   // prevent built-in menu from opening
   ev.preventDefault();
@@ -116,9 +99,8 @@ Select.prototype.onInnerMouseDown = function(ev) {
 /**
  * Handle keydown events when wrapper is focused
  **/
-Select.prototype.onWrapperKeyDown = function(ev) {
-  // check flag
-  if (this.useDefault || ev.defaultPrevented) return;
+function selectElOnWrapperKeyDown(ev) {
+  if (ev.defaultPrevented) return;
 
   var keyCode = ev.keyCode;
 
@@ -128,7 +110,7 @@ Select.prototype.onWrapperKeyDown = function(ev) {
       ev.preventDefault();
 
       // open custom menu
-      this.renderMenu();
+      renderMenu(this);
     }
 
   } else {
@@ -160,36 +142,38 @@ Select.prototype.onWrapperKeyDown = function(ev) {
  * Handle click events on wrapper element.
  * @param {Event} ev - The DOM event
  */
-Select.prototype.onWrapperClick = function(ev) {
+function selectElOnWrapperClick(ev) {
   // only left clicks, check default and disabled flags
-  if (ev.button !== 0 || this.useDefault || this.selectEl.disabled) return;
+  if (ev.button !== 0 || this.selectEl.disabled) return;
 
   // focus wrapper
-  this.wrapperEl.focus();
+  this.focus();
 
   // open menu
-  this.renderMenu();
+  renderMenu(this);
 }
 
 
 /**
- * Render options dropdown.
+ * Render options menu
  */
-Select.prototype.renderMenu = function() {
+function renderMenu(wrapperEl) {
   // check flag
-  if (this.isOpen) return;
+  if (wrapperEl.isOpen) return;
 
   // render custom menu and reset flag
-  var self = this;
-  this.menu = new Menu(this.wrapperEl, this.selectEl, function() {
-    self.isOpen = false;
-    self.menu = null;
-    self.wrapperEl.focus();
+  wrapperEl.menu = new Menu(wrapperEl, wrapperEl.selectEl, function() {
+    wrapperEl.isOpen = false;
+    wrapperEl.menu = null;
+    wrapperEl.focus();
   });
 
   // set flag
-  this.isOpen = true;
+  wrapperEl.isOpen = true;
 }
+
+
+/*************************************************************************/
 
 
 /**

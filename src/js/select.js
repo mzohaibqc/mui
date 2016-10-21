@@ -31,27 +31,26 @@ function initialize(selectEl) {
   // use default behavior on touch devices
   if ('ontouchstart' in doc.documentElement) return;
 
-  // initialize element
-
   // NOTE: To get around cross-browser issues with <select> behavior we will
   //       defer focus to the parent element and handle events there
 
   var wrapperEl = selectEl.parentNode;
 
-  // cache reference
-  wrapperEl.selectEl = selectEl;
+  // initialize variables
+  wrapperEl._selectEl = selectEl;
+  wrapperEl._menu = null;
 
   // make wrapper tab focusable, remove tab focus from <select>
   if (!selectEl.disabled) wrapperEl.tabIndex = 0;
   selectEl.tabIndex = -1;
 
   // prevent built-in menu from opening on <select>
-  jqLite.on(selectEl, 'mousedown', selectElOnInnerMouseDown);
+  jqLite.on(selectEl, 'mousedown', onInnerMouseDown);
 
   // attach event listeners for custom menu
-  jqLite.on(wrapperEl, 'click', selectElOnWrapperClick);
-  jqLite.on(wrapperEl, 'blur focus', selectElOnWrapperBlurOrFocus);
-  jqLite.on(wrapperEl, 'keydown', selectElOnWrapperKeyDown);
+  jqLite.on(wrapperEl, 'click', onWrapperClick);
+  jqLite.on(wrapperEl, 'blur focus', onWrapperBlurOrFocus);
+  jqLite.on(wrapperEl, 'keydown', onWrapperKeyDown);
 
   // add element to detect 'disabled' change (using sister element due to 
   // IE/Firefox issue
@@ -72,22 +71,12 @@ function initialize(selectEl) {
   });
 }
 
-/****************************************************************************/
-
-/**
- * Dispatch focus and blur events on inner <select> element.
- * @param {Event} ev - The DOM event
- */
-function selectElOnWrapperBlurOrFocus(ev) {
-  util.dispatchEvent(this.selectEl, ev.type, false, false);
-}
-
 
 /**
  * Disable default dropdown on mousedown.
  * @param {Event} ev - The DOM event
  */
-function selectElOnInnerMouseDown(ev) {
+function onInnerMouseDown(ev) {
   // only left clicks
   if (ev.button !== 0) return;
 
@@ -97,14 +86,24 @@ function selectElOnInnerMouseDown(ev) {
 
 
 /**
+ * Dispatch focus and blur events on inner <select> element.
+ * @param {Event} ev - The DOM event
+ */
+function onWrapperBlurOrFocus(ev) {
+  util.dispatchEvent(this._selectEl, ev.type, false, false);
+}
+
+
+/**
  * Handle keydown events when wrapper is focused
  **/
-function selectElOnWrapperKeyDown(ev) {
+function onWrapperKeyDown(ev) {
   if (ev.defaultPrevented) return;
 
-  var keyCode = ev.keyCode;
+  var keyCode = ev.keyCode,
+      menu = this._menu;
 
-  if (this.isOpen === false) {
+  if (!menu) {
     // spacebar, down, up
     if (keyCode === 32 || keyCode === 38 || keyCode === 40) {
       ev.preventDefault();
@@ -114,8 +113,6 @@ function selectElOnWrapperKeyDown(ev) {
     }
 
   } else {
-    var menu = this.menu;
-
     // tab
     if (keyCode === 9) return menu.destroy();
   
@@ -142,9 +139,9 @@ function selectElOnWrapperKeyDown(ev) {
  * Handle click events on wrapper element.
  * @param {Event} ev - The DOM event
  */
-function selectElOnWrapperClick(ev) {
+function onWrapperClick(ev) {
   // only left clicks, check default and disabled flags
-  if (ev.button !== 0 || this.selectEl.disabled) return;
+  if (ev.button !== 0 || this._selectEl.disabled) return;
 
   // focus wrapper
   this.focus();
@@ -158,22 +155,15 @@ function selectElOnWrapperClick(ev) {
  * Render options menu
  */
 function renderMenu(wrapperEl) {
-  // check flag
-  if (wrapperEl.isOpen) return;
+  // check instance
+  if (wrapperEl._menu) return;
 
-  // render custom menu and reset flag
-  wrapperEl.menu = new Menu(wrapperEl, wrapperEl.selectEl, function() {
-    wrapperEl.isOpen = false;
-    wrapperEl.menu = null;
+  // render custom menu
+  wrapperEl._menu = new Menu(wrapperEl, wrapperEl._selectEl, function() {
+    wrapperEl._menu = null;  // de-reference instance
     wrapperEl.focus();
   });
-
-  // set flag
-  wrapperEl.isOpen = true;
 }
-
-
-/*************************************************************************/
 
 
 /**
@@ -200,7 +190,7 @@ function Menu(wrapperEl, selectEl, wrapperCallbackFn) {
 
   // add to DOM
   wrapperEl.appendChild(this.menuEl);
-  jqLite.scrollTop(this.menuEl, this.menuEl._muiScrollTop);
+  jqLite.scrollTop(this.menuEl, this.menuEl._scrollTop);
 
   // attach event handlers
   jqLite.on(this.menuEl, 'click', this.onClickCB);
@@ -302,7 +292,7 @@ Menu.prototype._createMenuEl = function(wrapperEl, selectEl) {
   );
 
   jqLite.css(menuEl, props);
-  menuEl._muiScrollTop = props.scrollTop;
+  menuEl._scrollTop = props.scrollTop;
 
   return menuEl;
 }

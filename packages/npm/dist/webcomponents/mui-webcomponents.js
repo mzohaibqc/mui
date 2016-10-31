@@ -66,7 +66,7 @@ function onAnimationStartFn(name, callbackFn) {
     loadCss();
 
     // add listener
-    jqLite.on(document, animationEvents, animationStartHandler);
+    jqLite.on(document, animationEvents, animationStartHandler, true);
 
     // set flag
     this.init = true;
@@ -81,6 +81,12 @@ function onAnimationStartFn(name, callbackFn) {
 function animationStartHandler(ev) {
   var callbacks = animationCallbacks[ev.animationName] || [],
       i = callbacks.length;
+
+  // exit if a callback hasn't been registered
+  if (!i) return;
+  
+  // stop other callbacks from firing
+  ev.stopImmediatePropagation();
 
   // iterate through callbacks
   while (i--) callbacks[i](ev);
